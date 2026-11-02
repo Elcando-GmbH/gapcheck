@@ -7,7 +7,8 @@ Rules (see docs/FINDINGS.md for the data errors behind them):
 - An optional reference source (for example the close stored by an overnight job) is a
   cross-check only. A deviation beyond the tolerance is noted, it does not override the
   candle and does not block the check.
-- gap = open / previous close - 1, on unadjusted prices.
+- gap = open / previous close - 1, on unadjusted prices. The threshold comparison allows
+  for floating-point rounding (1e-12), so a gap of exactly the threshold counts as triggered.
 - A split effective today divides the previous close by the split ratio. A non-positive
   ratio blocks the check instead of producing a wrong gap.
 """
@@ -25,6 +26,7 @@ from .candles import TickerQuotes
 
 DEFAULT_THRESHOLD = 0.05
 DEFAULT_REFERENCE_TOLERANCE = 0.002
+THRESHOLD_EPSILON = 1e-12
 
 
 class ReferenceClose(Protocol):
@@ -72,6 +74,7 @@ class GapResult:
     candle_date: dt.date | None
     open: float | None
     open_source: str
+    daily_open: float | None  # daily open as delivered by the feed
     prev_close_candle: float | None
     prev_close_candle_date: dt.date | None
     prev_close_reference: float | None
@@ -99,6 +102,7 @@ def compute_gap(
         candle_date=quotes.today.date if quotes.today else None,
         open=quotes.today.open if quotes.today else None,
         open_source=quotes.open_source,
+        daily_open=quotes.daily_open if quotes.daily_open is not None else (quotes.today.open if quotes.today else None),
         prev_close_candle=quotes.previous.close if quotes.previous else None,
         prev_close_candle_date=quotes.previous.date if quotes.previous else None,
         prev_close_reference=None,
@@ -148,6 +152,6 @@ def compute_gap(
         return r
 
     r.gap = r.open / r.prev_close_used - 1
-    r.triggered = abs(r.gap) >= threshold
+    r.triggered = abs(r.gap) >= threshold - THRESHOLD_EPSILON
     r.status = "triggered" if r.triggered else "ok"
     return r

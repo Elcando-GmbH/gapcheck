@@ -2,13 +2,13 @@
 
 Rules, each backed by an observed data error (see docs/FINDINGS.md):
 
-1. The opening price is the open of the first one-minute bar at or after 09:30 New York.
-   Shortly after the open, the daily candle of a free data feed may still carry the
-   previous day's open (F2).
-2. If no one-minute bar is available, the daily open is used only if it differs from the
-   previous day's open. An identical value is treated as stale and rejected.
-3. A daily open that deviates from the one-minute open by more than a tolerance is kept in
-   the notes, so the discrepancy stays visible in the report.
+1. The opening price is the open of the first one-minute bar at or after 09:30 New York,
+   provided that bar starts no later than ``max_delay_minutes`` after 09:30. Shortly after
+   the open, the daily candle of a free data feed may still carry the previous day's open (F2).
+2. If no usable one-minute bar is available, the daily open is used only if it differs from
+   the previous day's open. An identical value is treated as stale and rejected.
+3. The daily open as delivered is always kept in ``daily_open``. A deviation from the
+   one-minute open beyond a tolerance is also noted, so the discrepancy stays visible.
 
 Nothing here downloads data. Callers pass in pandas frames from any source with the
 columns ``Open``, ``Close`` and optionally ``High``, ``Low``, ``Volume``, ``Stock Splits``.
@@ -24,6 +24,7 @@ import pandas as pd
 from .sessions import NEW_YORK, US_OPEN
 
 DAILY_VS_MINUTE_TOLERANCE = 0.005
+MAX_FIRST_BAR_DELAY_MINUTES = 5
 
 
 @dataclass
@@ -46,6 +47,7 @@ class TickerQuotes:
     previous: Candle | None
     notes: list[str] = field(default_factory=list)
     open_source: str = "daily"  # "minute_bar" | "daily" | "none"
+    daily_open: float | None = None  # today's daily open as delivered, before select_open
 
     @property
     def usable(self) -> bool:
@@ -120,17 +122,31 @@ def first_minute_open(frame: pd.DataFrame | None, trading_date: dt.date) -> tupl
     return _num(f["Open"].iloc[0]), f.index[0].strftime("%H:%M")
 
 
+def _delay_minutes(hhmm: str) -> int:
+    h, m = (int(x) for x in hhmm.split(":"))
+    return h * 60 + m - (US_OPEN.hour * 60 + US_OPEN.minute)
+
+
 def select_open(
     quotes: TickerQuotes,
     minute_open: float | None,
     minute_time: str | None,
     tolerance: float = DAILY_VS_MINUTE_TOLERANCE,
+    max_delay_minutes: int = MAX_FIRST_BAR_DELAY_MINUTES,
 ) -> TickerQuotes:
     """Set today's opening price according to the rules in the module docstring."""
     if quotes.today is None:
         quotes.open_source = "none"
         return quotes
     daily_open = quotes.today.open
+    quotes.daily_open = daily_open
+
+    if minute_open is not None and minute_time is not None and _delay_minutes(minute_time) > max_delay_minutes:
+        quotes.notes.append(
+            f"first one-minute bar only at {minute_time} New York, more than {max_delay_minutes} min "
+            "after the open; minute bar ignored"
+        )
+        minute_open = None
 
     if minute_open is not None:
         quotes.today.open = minute_open

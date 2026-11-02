@@ -82,6 +82,7 @@ def write_report(report: dict[str, Any], out_dir: str | Path) -> tuple[Path, Pat
             "status": r["status"],
             "open": r["open"],
             "open_source": r["open_source"],
+            "daily_open": r["daily_open"],
             "prev_close_used": r["prev_close_used"],
             "prev_close_source": r["prev_close_source"],
             "split_ratio": r["split_ratio"],

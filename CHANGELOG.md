@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 — 2026-11-02
+
+- `daily_open`: the daily open as delivered is kept in `TickerQuotes`, `GapResult` and the report
+- One-minute bars more than `max_delay_minutes` (default 5) after 09:30 are ignored; the daily-open rules apply
+- Threshold comparison tolerates floating-point rounding, so an exact threshold gap triggers
+- Version defined once, in `gapcheck/__init__.py`
+- README: where the input frames come from, with an optional yfinance example
+
 ## 0.1.0 — 2026-11-02
 
 First public release.

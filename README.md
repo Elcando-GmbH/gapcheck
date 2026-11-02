@@ -13,7 +13,7 @@ bars. gapcheck encodes the rules that came out of running into each of these.
 
 | Input | Rule | Why |
 |---|---|---|
-| Opening price | First one-minute bar at or after 09:30 New York | Daily candles can carry yesterday's open shortly after the bell ([F2](docs/FINDINGS.md#f2--shortly-after-the-open-the-daily-candle-may-still-carry-yesterdays-open-30-oct-2026)) |
+| Opening price | First one-minute bar at or after 09:30 New York, at most 5 minutes late (configurable) | Daily candles can carry yesterday's open shortly after the bell ([F2](docs/FINDINGS.md#f2--shortly-after-the-open-the-daily-candle-may-still-carry-yesterdays-open-30-oct-2026)) |
 | Fallback open | Daily open, rejected if identical to yesterday's open | A stale value must not produce a gap |
 | Previous close | Close of the previous unadjusted daily candle | Convenience "previous close" fields can be after-hours prices ([F1](docs/FINDINGS.md#f1--a-vendors-previous-close-can-be-an-after-hours-price-29-oct-2026)) |
 | Reference close | Optional cross-check, deviation noted | Disagreement is information, not an override |
@@ -42,7 +42,21 @@ q = quotes_from_daily(daily_frame, "NOW", day)            # unadjusted daily can
 q = select_open(q, *first_minute_open(minute_frame, day))  # one-minute bars
 r = compute_gap(q, trading_date=day, threshold=0.05)
 
-print(r.status, r.gap, r.open_source, r.notes)
+print(r.status, r.gap, r.open_source, r.daily_open, r.notes)
+```
+
+`daily_frame` holds unadjusted daily candles (`Open`, `Close`, optionally `Stock Splits`),
+`minute_frame` one-minute bars (`Open`) with a timezone-aware or UTC index, both from your
+data source. With [yfinance](https://github.com/ranaroussi/yfinance), for example (not a
+dependency of this package; check Yahoo's terms before using the data):
+
+```python
+import yfinance as yf
+
+daily_frame = yf.download("NOW", period="5d", interval="1d", auto_adjust=False, actions=True,
+                          progress=False, multi_level_index=False)
+minute_frame = yf.download("NOW", period="1d", interval="1m", auto_adjust=False,
+                           progress=False, multi_level_index=False)
 ```
 
 A runnable walkthrough of all cases, with inline data:
@@ -63,6 +77,7 @@ All tests run offline.
 ## Known limitations
 
 - The opening price at +10 minutes is preliminary on the feed tested ([F3](docs/FINDINGS.md)). How long to wait, and how close the converged value is to the official exchange open, is still being measured.
+- If the first one-minute bar is more than 5 minutes late, it is ignored and the daily-open rules apply.
 - The split check rejects only non-positive ratios. It does not validate a ratio against the price move.
 - Findings are specific to one free feed. The rules are defensive regardless of the source.
 

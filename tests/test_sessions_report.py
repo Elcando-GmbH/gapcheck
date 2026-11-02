@@ -51,3 +51,12 @@ def test_report_roundtrip(tmp_path):
     j, c = write_report(rep, tmp_path)
     assert j.name == "gapcheck_2026-11-02_144004.json" and c.exists()
     assert json.loads(j.read_text())["results"][0]["ticker"] == "IDXX"
+    assert "daily_open" in c.read_text().splitlines()[0]
+
+
+def test_version_single_source():
+    import importlib.metadata
+
+    import gapcheck
+
+    assert importlib.metadata.version("gapcheck") == gapcheck.__version__

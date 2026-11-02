@@ -32,6 +32,18 @@ def test_threshold_is_inclusive():
     assert compute_gap(tq(105.0, 100.0), trading_date=D, threshold=0.05).triggered
 
 
+def test_threshold_boundary_with_float_rounding():
+    # 0.0735 / 0.07 - 1 evaluates to 0.04999999999999982; an exact 5 % gap must still trigger
+    r = compute_gap(tq(0.0735, 0.07), trading_date=D, threshold=0.05)
+    assert r.gap < 0.05 and r.triggered
+
+
+def test_daily_open_in_result():
+    q = tq(127.67, 174.08)
+    q.daily_open = 130.0
+    assert compute_gap(q, trading_date=D).daily_open == 130.0
+
+
 def test_custom_threshold():
     assert not compute_gap(tq(105.0, 100.0), trading_date=D, threshold=0.06).triggered
 

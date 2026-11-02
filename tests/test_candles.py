@@ -95,3 +95,24 @@ def test_late_first_bar_is_noted():
 def test_no_today_candle():
     q = TickerQuotes("X", today=None, previous=Candle(PREV, open=1.0, close=1.0))
     assert select_open(q, 1.0, "09:30").open_source == "none"
+
+
+def test_daily_open_is_kept():
+    q = select_open(stale(120.905, 120.905), 110.2, "09:30")
+    assert q.daily_open == 120.905 and q.today.open == 110.2
+
+
+def test_minute_bar_too_late_is_ignored_and_daily_rules_apply():
+    q = select_open(stale(68.35, 93.0), 70.0, "09:36")
+    assert q.today.open == 68.35 and q.open_source == "daily"
+    assert any("09:36" in n and "ignored" in n for n in q.notes)
+
+
+def test_minute_bar_too_late_with_stale_daily_gives_no_open():
+    q = select_open(stale(120.905, 120.905), 110.2, "10:15")
+    assert q.today.open is None and q.open_source == "none"
+
+
+def test_max_delay_is_configurable():
+    q = select_open(stale(68.35, 93.0), 70.0, "09:36", max_delay_minutes=10)
+    assert q.today.open == 70.0 and q.open_source == "minute_bar"
