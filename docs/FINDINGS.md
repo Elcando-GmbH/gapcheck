@@ -1,8 +1,8 @@
 # Findings
 
 Each rule in gapcheck exists because a data error was observed in production use. The
-observations below come from daily runs over a universe of 324 US large caps (the
-holdings of a US large-cap ESG ETF), with prices from Yahoo Finance via the open-source
+observations below come from daily runs over 324 US large caps, with prices from Yahoo
+Finance via the open-source
 `yfinance` library. They describe that feed on those days, not every feed on every day.
 
 ## F1 — A vendor's "previous close" can be an after-hours price (29 Oct 2026)

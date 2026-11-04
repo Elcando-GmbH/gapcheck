@@ -25,7 +25,7 @@ classifiers = [
 dependencies = ["pandas>=2.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8", "ruff==0.17.3"]
 
 [project.urls]
 Repository = "https://github.com/Elcando-GmbH/gapcheck"

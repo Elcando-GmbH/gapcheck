@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-11-03
+
+- Linter version pinned (`ruff==0.17.3`), so a new ruff release cannot break CI unnoticed
+- docs/FINDINGS.md: universe described as 324 US large caps only
+
 ## 0.1.1 — 2026-11-02
 
 - `daily_open`: the daily open as delivered is kept in `TickerQuotes`, `GapResult` and the report
