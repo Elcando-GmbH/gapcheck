@@ -18,7 +18,7 @@ bars. gapcheck encodes the rules that came out of running into each of these.
 | Previous close | Close of the previous unadjusted daily candle | Convenience "previous close" fields can be after-hours prices ([F1](docs/FINDINGS.md#f1--a-vendors-previous-close-can-be-an-after-hours-price-29-oct-2026)) |
 | Reference close | Optional cross-check, deviation noted | Disagreement is information, not an override |
 | Split today | Previous close divided by the ratio; non-positive ratio blocks | A split must not look like a −90 % gap |
-| Report | Every result with its source, notes and minutes after the open | Early signals are preliminary ([F3](docs/FINDINGS.md#f3--the-first-minute-bar-is-itself-preliminary-in-the-first-minutes-2-nov-2026)) |
+| Report | Every result with its source, notes and minutes after the open | Early signals are preliminary ([F3](docs/FINDINGS.md#f3--in-the-first-minutes-the-opening-price-is-preliminary-2-and-3-nov-2026)) |
 
 Nothing is downloaded and nothing is written to a price database. You pass in pandas frames
 from any source. The output is a report.
@@ -76,7 +76,7 @@ All tests run offline.
 
 ## Known limitations
 
-- The opening price at +10 minutes is preliminary on the feed tested ([F3](docs/FINDINGS.md)). How long to wait, and how close the converged value is to the official exchange open, is still being measured.
+- The opening price is preliminary in the first minutes on the feed tested. From about 30 minutes after the open it matches the final daily open for most tickers; a small structural difference remains for some ([F3](docs/FINDINGS.md#f3--in-the-first-minutes-the-opening-price-is-preliminary-2-and-3-nov-2026)). Two days measured so far.
 - If the first one-minute bar is more than 5 minutes late, it is ignored and the daily-open rules apply.
 - The split check rejects only non-positive ratios. It does not validate a ratio against the price move.
 - Findings are specific to one free feed. The rules are defensive regardless of the source.

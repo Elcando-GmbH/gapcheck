@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-11-04
+
+- docs/FINDINGS.md, F3: second day of measurements and a comparison with the final daily open (+10 vs +30 minutes); structural residual difference documented
+
 ## 0.1.2 — 2026-11-03
 
 - Linter version pinned (`ruff==0.17.3`), so a new ruff release cannot break CI unnoticed
