@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-11-04
+
+- **Changed default:** on a split day the previous close is taken as already split-adjusted
+  (`history_split_adjusted=True`). Before, it was always divided by the ratio, which turns
+  split-adjusted history from free feeds into a false gap of +100 % to +2,400 % (F4).
+  Pass `history_split_adjusted=False` for genuinely unadjusted history.
+- New guard: the check is blocked if open and previous close stand in a common split ratio,
+  whether no split is reported or the flag does not match the data.
+- docs/FINDINGS.md, F4: four 2026 splits; walkthrough shows both cases.
+
 ## 0.1.3 — 2026-11-04
 
 - docs/FINDINGS.md, F3: second day of measurements and a comparison with the final daily open (+10 vs +30 minutes); structural residual difference documented

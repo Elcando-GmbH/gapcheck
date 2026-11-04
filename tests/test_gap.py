@@ -79,11 +79,51 @@ def test_reference_used_only_without_candle(tmp_path: Path):
     assert r.prev_close_source == "csv" and r.triggered
 
 
-def test_split_today_adjusts_previous_close():
-    # 10:1 split: previous close 1000, open 101 -> +1 %, not -89.9 %
-    r = compute_gap(tq(101.0, 1000.0, split=10.0), trading_date=D)
+def test_split_today_unadjusted_history_divides():
+    # 10:1 split, history not adjusted: previous close 1000, open 101 -> +1 %, not -89.9 %
+    r = compute_gap(tq(101.0, 1000.0, split=10.0), trading_date=D, history_split_adjusted=False)
     assert r.split_ratio == 10.0 and r.prev_close_used == pytest.approx(100.0)
     assert r.gap == pytest.approx(0.01) and not r.triggered
+
+
+@pytest.mark.parametrize(
+    "open_, prev, ratio",
+    [  # F4: previous close as delivered after the split, already adjusted
+        (80.82, 80.04, 2.0),
+        (237.60, 241.16, 10.0),
+        (166.25, 167.77, 25.0),
+        (191.26, 193.18, 4.0),
+    ],
+)
+def test_split_today_adjusted_history_is_default(open_, prev, ratio):
+    r = compute_gap(tq(open_, prev, split=ratio), trading_date=D)
+    assert r.prev_close_used == prev and abs(r.gap) < 0.02 and not r.triggered
+    assert any("already split-adjusted" in n for n in r.notes)
+
+
+def test_unreported_split_blocks():
+    r = compute_gap(tq(193.98, 772.74), trading_date=D)  # 4:1 in the prices, no split reported
+    assert r.status == "blocked" and r.gap is None and not r.triggered
+    assert any("4:1 split ratio" in n for n in r.notes)
+
+
+def test_unreported_reverse_split_blocks():
+    r = compute_gap(tq(20.0, 2.0), trading_date=D)
+    assert r.status == "blocked" and any("reverse-split" in n for n in r.notes)
+
+
+def test_wrong_history_flag_blocks_instead_of_false_gap():
+    # history actually unadjusted, caller left the default (adjusted): prices still show 10:1
+    r = compute_gap(tq(101.0, 1000.0, split=10.0), trading_date=D)
+    assert r.status == "blocked" and "does not match" in " ".join(r.notes)
+    # history actually adjusted, caller says unadjusted: division leaves a 1:10 ratio
+    r = compute_gap(tq(237.60, 241.16, split=10.0), trading_date=D, history_split_adjusted=False)
+    assert r.status == "blocked" and not r.triggered
+
+
+def test_large_gap_not_near_a_split_ratio_triggers():
+    r = compute_gap(tq(127.67, 174.08), trading_date=D)  # -26.7 %
+    assert r.status == "triggered"
 
 
 def test_implausible_split_blocks():

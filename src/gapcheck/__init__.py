@@ -1,6 +1,6 @@
 """gapcheck: detect opening gaps on US equities without trusting the first numbers a feed delivers."""
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 from .candles import Candle, TickerQuotes, first_minute_open, quotes_from_daily, select_open
 from .gap import CsvReference, GapResult, NoReference, ReferenceClose, compute_gap

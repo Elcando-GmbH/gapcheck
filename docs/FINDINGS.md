@@ -66,6 +66,35 @@ the minutes after the open for every run. For historical tests, where only the d
 the remaining structural difference (mostly 0 %, in single cases 0.5 % to 2.3 %) is the gap between
 live and historical data. Two days are a small sample; the comparison will be repeated.
 
+## F4 — "Unadjusted" daily history is split-adjusted after the fact (4 Nov 2026)
+
+Daily candles requested from the feed with `auto_adjust=False` are documented as unadjusted. For
+four 2026 splits, the previous close delivered today is already divided by the split ratio:
+
+| Split | Ratio | Previous close as delivered | Open on the split day | Gap as delivered | Gap after dividing again |
+|---|---|---|---|---|---|
+| Apr 2026 | 25:1 | 167.77 | 166.25 | −0.91 % | +2,377 % |
+| Jun 2026 | 10:1 | 241.16 | 237.60 | −1.48 % | +885 % |
+| Jul 2026 | 4:1 | 193.18 | 191.26 | −1.00 % | +296 % |
+| Sep 2026 | 2:1 | 80.04 | 80.82 | +0.97 % | +102 % |
+
+Dividing the previous close by the ratio, as a split rule naturally would, turns a normal day into
+a false gap of +100 % to +2,400 %. Only dividends are left unadjusted in `Close`.
+
+A database that appends new candles every night without rewriting old ones shows the opposite
+error: the split stays in the stored series as a crash (−75 % on the 4:1 split above), which
+distorts drawdowns and risk ratios until the series is reloaded.
+
+Whether the previous close is already adjusted **on the morning of the split day** has not been
+measured yet. It will be on the next large-cap split (20 Nov 2026).
+
+**Rule:** `history_split_adjusted=True` (default) takes the previous close as delivered. Callers
+with genuinely unadjusted history set it to `False`. If open and previous close still stand in the
+ratio of a common split after this step, the check is blocked: either a split is not reported or
+the flag does not match the data. If you cannot tell whether your history is adjusted, run a split
+detector first, for example a comparison of the feed's previous close with an unadjusted close you
+stored the night before.
+
 ## Status
 
 | Finding | Rule in code | Tests |
@@ -73,3 +102,4 @@ live and historical data. Two days are a small sample; the comparison will be re
 | F1 | `gap.compute_gap` — candle close, reference as cross-check | `test_wrong_reference_is_noted_but_candle_wins` |
 | F2 | `candles.select_open` — minute bar first, stale daily open rejected | `test_minute_bar_overrides_stale_daily_open`, `test_stale_daily_open_rejected_without_minute_bar` |
 | F3 | `report.build_report` — minutes after open recorded per run, so early and later runs can be compared | `test_report_roundtrip` |
+| F4 | `gap.compute_gap` — `history_split_adjusted`, block when prices still show a split ratio | `test_split_today_adjusted_history_is_default`, `test_unreported_split_blocks`, `test_wrong_history_flag_blocks_instead_of_false_gap` |

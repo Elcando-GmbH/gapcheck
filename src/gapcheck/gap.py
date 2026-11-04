@@ -9,8 +9,13 @@ Rules (see docs/FINDINGS.md for the data errors behind them):
   candle and does not block the check.
 - gap = open / previous close - 1, on unadjusted prices. The threshold comparison allows
   for floating-point rounding (1e-12), so a gap of exactly the threshold counts as triggered.
-- A split effective today divides the previous close by the split ratio. A non-positive
-  ratio blocks the check instead of producing a wrong gap.
+- A split effective today: many feeds deliver the history already split-adjusted, even when
+  asked for unadjusted prices (F4). ``history_split_adjusted=True`` (default) takes the previous
+  close as adjusted and does not divide again. With ``False`` the previous close is divided by
+  the split ratio. A non-positive ratio blocks the check instead of producing a wrong gap.
+- If open and previous close (after any split handling) still stand in the ratio of a common
+  split, the check is blocked with a note: either a split is not reported, or
+  ``history_split_adjusted`` does not match the data. A split must never look like a gap.
 """
 
 from __future__ import annotations
@@ -27,6 +32,21 @@ from .candles import TickerQuotes
 DEFAULT_THRESHOLD = 0.05
 DEFAULT_REFERENCE_TOLERANCE = 0.002
 THRESHOLD_EPSILON = 1e-12
+SPLIT_RATIOS = (2, 3, 4, 5, 6, 8, 10, 15, 20, 25, 30, 50)
+SPLIT_TOLERANCE = 0.03
+
+
+def split_like(prev_close: float, price: float) -> float | None:
+    """Ratio of a common split (negative = reverse split) if prev_close / price matches one."""
+    if prev_close <= 0 or price <= 0:
+        return None
+    q = prev_close / price
+    for ratio in SPLIT_RATIOS:
+        if abs(q / ratio - 1) <= SPLIT_TOLERANCE:
+            return float(ratio)
+        if abs(q * ratio - 1) <= SPLIT_TOLERANCE:
+            return -float(ratio)
+    return None
 
 
 class ReferenceClose(Protocol):
@@ -94,6 +114,7 @@ def compute_gap(
     trading_date: dt.date | None = None,
     threshold: float = DEFAULT_THRESHOLD,
     reference_tolerance: float = DEFAULT_REFERENCE_TOLERANCE,
+    history_split_adjusted: bool = True,
 ) -> GapResult:
     reference = reference or NoReference()
     trading_date = trading_date or (quotes.today.date if quotes.today else None)
@@ -137,18 +158,33 @@ def compute_gap(
         r.prev_close_used, r.prev_close_source = r.prev_close_reference, reference.name
         r.notes.append("no previous candle; reference close used")
 
-    if quotes.today is not None and quotes.today.split:
+    split_reported = quotes.today is not None and bool(quotes.today.split)
+    if split_reported:
         ratio = quotes.today.split
-        if ratio > 0 and r.prev_close_used is not None:
-            r.split_ratio = ratio
-            r.prev_close_used = r.prev_close_used / ratio
-            r.notes.append(f"split {ratio:g}:1 effective today; previous close adjusted")
-        else:
+        if ratio <= 0 or r.prev_close_used is None:
             r.notes.append(f"split reported with ratio {ratio!r}; check blocked")
             r.status = "blocked"
             return r
+        r.split_ratio = ratio
+        if history_split_adjusted:
+            r.notes.append(f"split {ratio:g}:1 effective today; previous close taken as already split-adjusted")
+        else:
+            r.prev_close_used = r.prev_close_used / ratio
+            r.notes.append(f"split {ratio:g}:1 effective today; previous close divided by the ratio")
 
     if r.open is None or r.prev_close_used is None or r.prev_close_used <= 0:
+        return r
+
+    residual = split_like(r.prev_close_used, r.open)
+    if residual is not None:
+        kind = "split" if residual > 0 else "reverse-split"
+        why = ("history_split_adjusted does not match the data" if split_reported
+               else "but no split is reported")
+        r.notes.append(
+            f"open {r.open:.4f} and previous close {r.prev_close_used:.4f} stand in a {abs(residual):g}:1 "
+            f"{kind} ratio, {why}; check blocked"
+        )
+        r.status = "blocked"
         return r
 
     r.gap = r.open / r.prev_close_used - 1

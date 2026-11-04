@@ -51,10 +51,16 @@ for ticker, (day_frame, minute_frame) in cases.items():
     q = select_open(q, *first_minute_open(minute_frame, DAY))
     results.append(compute_gap(q, trading_date=DAY))
 
-# A split effective today: the previous close is divided by the ratio.
+# A 10:1 split effective today. The feed already delivers the previous close split-adjusted
+# (100 instead of 1000), which is the default assumption: no second division.
 split = TickerQuotes("SPLIT", today=Candle(DAY, open=101.0, close=None, split=10.0),
-                     previous=Candle(dt.date(2026, 10, 29), open=None, close=1000.0))
+                     previous=Candle(dt.date(2026, 10, 29), open=None, close=100.0))
 results.append(compute_gap(split, trading_date=DAY))
+
+# The same split in prices, but the feed does not report it: blocked, not a -90 % gap.
+hidden = TickerQuotes("HIDDEN", today=Candle(DAY, open=101.0, close=None),
+                      previous=Candle(dt.date(2026, 10, 29), open=None, close=1000.0))
+results.append(compute_gap(hidden, trading_date=DAY))
 
 for r in results:
     gap = "  n/a  " if r.gap is None else f"{r.gap:+7.2%}"
